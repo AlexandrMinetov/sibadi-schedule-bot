@@ -6,10 +6,11 @@ on:
       mode:
         description: Operation
         type: choice
-        options: [preview, test, diagnose, publish_today]
+        options: [preview, poll, test, diagnose, publish_today]
         default: preview
   schedule:
-    - cron: '0,15,30,45 * * * *'
+    - cron: '2,17,32,47 * * * *'
+    - cron: '7,12,22,27,37,42,52,57 * * * *'
 
 permissions:
   contents: write
@@ -31,10 +32,12 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
           THREAD_ID: ${{ secrets.THREAD_ID }}
-          MODE: ${{ github.event_name == 'schedule' && 'monitor' || inputs.mode }}
-        run: python3 bot.py
+          MODE: ${{ github.event_name == 'schedule' && (github.event.schedule == '2,17,32,47 * * * *' && 'monitor' || 'poll') || inputs.mode }}
+        run: |
+          python3 -m py_compile bot.py
+          python3 bot.py
       - name: Persist schedule state
-        if: ${{ always() && (github.event_name == 'schedule' || inputs.mode == 'publish_today') }}
+        if: ${{ always() && (github.event_name == 'schedule' || inputs.mode == 'publish_today' || inputs.mode == 'poll') }}
         run: |
           if [ -f state.json ]; then
             git config user.name 'github-actions[bot]'
