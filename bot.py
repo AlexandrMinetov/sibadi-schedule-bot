@@ -324,6 +324,10 @@ def main():
         return
     if mode not in ("monitor", "poll", "publish_today"):
         raise ValueError("Unknown mode")
+    # Refuse legacy monitoring/polling while Cloudflare owns the webhook.
+    # Check before sending any schedule, not after monitor() has already run.
+    if telegram("getWebhookInfo", {}).get("url"):
+        raise RuntimeError("Telegram webhook is active; legacy bot is stopped")
     state = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
     state = {key: value for key, value in state.items()
              if key == "_meta" or key >= (today - timedelta(days=1)).isoformat()}

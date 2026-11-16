@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sibadi-schedule-bot",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "keep_vars": true,
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "durable_objects": {
+    "bindings": [{ "name": "BOT", "class_name": "ScheduleBot" }]
+  },
+  "migrations": [{ "tag": "v1-sqlite", "new_sqlite_classes": ["ScheduleBot"] }],
+  "kv_namespaces": [
+    { "binding": "LEGACY_STATE", "id": "03e5fffc260f4e9bb847ff21ad4dda7d" }
+  ],
+  "observability": { "enabled": false }
+}
