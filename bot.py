@@ -44,8 +44,18 @@ def parse(payload, day):
     return sorted(rows)
 
 def send(text):
-    if len(text)>4000: raise ValueError('Message too long')
-    telegram('sendMessage',{'chat_id':os.environ['CHAT_ID'],'text':text,'link_preview_options':{'is_disabled':True}})
+    if len(text) > 4000:
+        raise ValueError('Message too long')
+
+    telegram('sendMessage', {
+        'chat_id': int(os.environ['CHAT_ID']),
+        'message_thread_id': int(os.environ['THREAD_ID']),
+        'text': text,
+        'link_preview_options': {
+            'is_disabled': True
+        }
+    })
+
 
 def main():
     now=datetime.now(ZoneInfo('Asia/Omsk')); today=now.date(); tomorrow=today+timedelta(days=1)
