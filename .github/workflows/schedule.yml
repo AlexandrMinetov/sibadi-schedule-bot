@@ -1,0 +1,31 @@
+name: Schedule bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Operation
+        type: choice
+        options: [test, diagnose]
+        default: test
+
+permissions:
+  contents: read
+
+concurrency:
+  group: schedule-bot
+  cancel-in-progress: false
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          THREAD_ID: ${{ secrets.THREAD_ID }}
+          MODE: ${{ inputs.mode }}
+        run: python3 bot.py
