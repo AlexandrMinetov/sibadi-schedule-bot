@@ -151,3 +151,18 @@ test('failed edit retries without repeating the change notification',async()=>{
   assert.equal(sends(retry).length,0);assert.equal(retry.filter(x=>x.method==='editMessageText').length,1);
   assert.equal((await e.STATE.get('day:2026-11-17',{type:'json'})).editPending,false);
 });
+test('daily recovery edits existing message if source changed after failed state write',async()=>{
+  Date.now=()=>Date.parse('2026-11-17T12:00:00Z');
+  const e=env();await e.STATE.put('active','1');
+  const put=e.STATE.put;
+  let failed=false;
+  e.STATE.put=async(k,v)=>{if(k==='day:2026-11-17'&&!failed){failed=true;throw Error('storage failed');}return put(k,v);};
+  const first=services([row('2026-11-17','A')]);await assert.rejects(monitor(e));
+  assert.equal(sends(first).length,1);
+  e.STATE.put=put;
+  const retry=services([row('2026-11-17','B')]);await monitor(e);
+  assert.equal(sends(retry).length,0);
+  const edits=retry.filter(x=>x.method==='editMessageText');
+  assert.equal(edits.length,1);assert.match(edits[0].data.text,/>2 пара/);
+  assert.ok(edits[0].data.text.includes('\nB\n'));
+});

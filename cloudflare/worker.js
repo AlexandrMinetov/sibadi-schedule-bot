@@ -32,6 +32,8 @@ async function api(env,method,data={}) {
       body:JSON.stringify(data),signal:AbortSignal.timeout(12000)
     });
     const x=await r.json();
+    // A previous edit may have succeeded before its response was lost.
+    if(method==="editMessageText"&&x.error_code===400&&/message is not modified/i.test(x.description||"")) return true;
     if(!r.ok||!x.ok) throw new TelegramError(method,x.error_code,x.parameters?.retry_after);
     return x.result;
   } catch(e) {throw e instanceof TelegramError ? e : new TelegramError(method);}
@@ -158,11 +160,15 @@ async function monitor(env) {
       const posted=await sendOnce(env,"daily:"+day,text);
       if(!posted) continue;
       published=true;id=posted.message_id;
-      await env.STATE.put(key,JSON.stringify({rows,published,messageId:id}),{expirationTtl:604800});
+      await env.STATE.put(key,JSON.stringify({rows,published,messageId:id,editPending:!!posted.recovered}),{expirationTtl:604800});
       const previous=await env.STATE.get("pin",{type:"json"});
       const pinned=await pin(env,id,previous);
       if(pinned) await env.STATE.put("pin",JSON.stringify(pinned));
-      continue;
+      if(!posted.recovered) continue;
+      // The source may have changed between a successful send and recovery
+      // from a failed state write. Bring that same message up to date.
+      old.rows=rows;
+      old.editPending=true;
     }
     if(old.rows&&JSON.stringify(old.rows)!==JSON.stringify(rows)) {
       const text="<b>⚠️ Изменение расписания</b>\n\n"+messages([dayBlock(day,rows)])[0];
@@ -197,7 +203,7 @@ async function digest(value) {
 // automatically resent. Definite 4xx rejections can be safely retried later.
 async function sendOnce(env,key,text,reply) {
   const opKey="op:"+key,existing=await env.STATE.get(opKey,{type:"json"});
-  if(existing?.status==="sent") return {message_id:existing.messageId};
+  if(existing?.status==="sent") return {message_id:existing.messageId,recovered:true};
   if(existing?.status==="pending") return null;
   if(existing?.retryAt>Date.now()) throw Error("Telegram retry deferred");
   await env.STATE.put(opKey,JSON.stringify({status:"pending",at:Date.now()}));
